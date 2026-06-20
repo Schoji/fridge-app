@@ -1,65 +1,237 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase-client";
+
+type Product = {
+  id: string;
+  name: string;
+  expiration_date: string;
+  image_url: string | null;
+};
+
+function daysUntilExpiry(dateStr: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(dateStr + "T00:00:00");
+  return Math.round(
+    (expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
+}
+
+function ExpiryLabel({ days }: { days: number }) {
+  if (days < 0)
+    return (
+      <span className="text-red-500 text-sm font-medium">
+        Expired {Math.abs(days)} day{Math.abs(days) !== 1 ? "s" : ""} ago
+      </span>
+    );
+  if (days === 0)
+    return (
+      <span className="text-orange-500 text-sm font-medium">Expires today</span>
+    );
+  if (days <= 3)
+    return (
+      <span className="text-orange-500 text-sm font-medium">
+        {days} day{days !== 1 ? "s" : ""} left
+      </span>
+    );
+  return <span className="text-gray-400 text-sm">{days} days left</span>;
+}
+
+function cardStyle(days: number): string {
+  if (days < 0) return "border-l-[3px] border-red-400 bg-red-50";
+  if (days <= 3) return "border-l-[3px] border-orange-400 bg-orange-50";
+  return "border-l-[3px] border-gray-100 bg-white";
+}
+
+function TrashIcon() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-5 h-5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4h6v2" />
+    </svg>
+  );
+}
+
+export default function HomePage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [imageModal, setImageModal] = useState<string | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("products")
+      .select("id, name, expiration_date, image_url")
+      .order("expiration_date", { ascending: true })
+      .then(({ data, error }) => {
+        if (!error) setProducts(data ?? []);
+        setLoading(false);
+      });
+  }, []);
+
+  async function handleDelete(product: Product) {
+    if (!confirm(`Delete "${product.name}"?`)) return;
+    setDeleting(product.id);
+    const supabase = createClient();
+
+    if (product.image_url) {
+      const path = product.image_url.split("/product-images/")[1];
+      if (path) await supabase.storage.from("product-images").remove([path]);
+    }
+
+    await supabase.from("products").delete().eq("id", product.id);
+    setProducts((prev) => prev.filter((p) => p.id !== product.id));
+    setDeleting(null);
+  }
+
+  async function handleSignOut() {
+    await createClient().auth.signOut();
+    router.push("/login");
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <span className="text-gray-300 text-sm">Loading…</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-md mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-14 pb-5">
+          <h1 className="text-2xl font-semibold text-gray-900">Fridge</h1>
+          <button
+            onClick={handleSignOut}
+            className="text-sm text-gray-400 active:text-gray-600"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            Sign out
+          </button>
         </div>
-      </main>
+
+        {/* List */}
+        <div className="px-4 flex flex-col gap-2.5 pb-28">
+          {products.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm py-20">
+              No products yet — tap + to add one
+            </p>
+          ) : (
+            products.map((product) => {
+              const days = daysUntilExpiry(product.expiration_date);
+              const formattedDate = new Date(
+                product.expiration_date + "T00:00:00"
+              ).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              });
+
+              return (
+                <div
+                  key={product.id}
+                  className={`flex items-center rounded-2xl shadow-sm overflow-hidden ${cardStyle(days)}`}
+                >
+                  <div className="flex-1 py-4 pl-4 pr-3 min-w-0">
+                    <p className="font-medium text-gray-900 text-[15px] truncate">
+                      {product.name}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <ExpiryLabel days={days} />
+                      <span className="text-gray-300 text-sm">·</span>
+                      <span className="text-gray-400 text-sm">
+                        {formattedDate}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 pr-2 flex-shrink-0">
+                    {product.image_url && (
+                      <button
+                        onClick={() => setImageModal(product.image_url!)}
+                        className="w-11 h-11 rounded-xl overflow-hidden"
+                        aria-label="View image"
+                      >
+                        <Image
+                          src={product.image_url}
+                          alt={product.name}
+                          width={44}
+                          height={44}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => handleDelete(product)}
+                      disabled={deleting === product.id}
+                      className="p-2.5 text-gray-300 active:text-red-400 disabled:opacity-30"
+                      aria-label="Delete"
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* FAB */}
+      <Link
+        href="/add"
+        className="fixed bottom-8 right-6 w-14 h-14 bg-gray-900 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+        aria-label="Add product"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-6 h-6 text-white"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </Link>
+
+      {/* Image modal */}
+      {imageModal && (
+        <div
+          className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-6"
+          onClick={() => setImageModal(null)}
+        >
+          <Image
+            src={imageModal}
+            alt="Product photo"
+            width={600}
+            height={600}
+            className="max-w-full max-h-[80vh] rounded-2xl object-contain"
+          />
+        </div>
+      )}
     </div>
   );
 }

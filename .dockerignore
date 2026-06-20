@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.gitignore
+npm-debug.log*
+README.md
+Dockerfile
+.dockerignore
+Jenkinsfile
+.env*
+!.env.local.example
+.vscode
+.idea
+*.md
+.mcp.json
