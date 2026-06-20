@@ -21,6 +21,21 @@ pipeline {
       }
     }
 
+    stage('Check credentials') {
+      steps {
+        withCredentials([
+          string(credentialsId: 'supabase-url', variable: 'SUPABASE_URL'),
+          string(credentialsId: 'supabase-anon-key', variable: 'SUPABASE_ANON_KEY'),
+        ]) {
+          sh '''
+            test -n "$SUPABASE_URL"
+            test -n "$SUPABASE_ANON_KEY"
+            echo "Credentials loaded"
+          '''
+        }
+      }
+    }
+
     stage('Build image') {
       steps {
         script {
