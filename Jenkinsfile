@@ -12,13 +12,6 @@ pipeline {
     CONTAINER_NAME = 'fridge-companion'
     // Host port -> container port 3000. Change the left side to expose elsewhere.
     HOST_PORT = '3000'
-
-    // Supabase keys pulled from Jenkins Credentials (Secret text).
-    // Create two credentials with these exact IDs:
-    //   supabase-url       -> NEXT_PUBLIC_SUPABASE_URL value
-    //   supabase-anon-key  -> NEXT_PUBLIC_SUPABASE_ANON_KEY value
-    NEXT_PUBLIC_SUPABASE_URL = credentials('supabase-url')
-    NEXT_PUBLIC_SUPABASE_ANON_KEY = credentials('supabase-anon-key')
   }
 
   stages {
@@ -30,16 +23,27 @@ pipeline {
 
     stage('Build image') {
       steps {
-        // NEXT_PUBLIC_* must be passed as build args — they are inlined
-        // into the client bundle at build time, not read at runtime.
-        sh '''
-          docker build \
-            --build-arg NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
-            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
-            -t "$IMAGE_NAME:$BUILD_NUMBER" \
-            -t "$IMAGE_NAME:latest" \
-            .
-        '''
+        script {
+          try {
+            withCredentials([
+              string(credentialsId: 'supabase-url', variable: 'NEXT_PUBLIC_SUPABASE_URL'),
+              string(credentialsId: 'supabase-anon-key', variable: 'NEXT_PUBLIC_SUPABASE_ANON_KEY'),
+            ]) {
+              // NEXT_PUBLIC_* must be passed as build args — they are inlined
+              // into the client bundle at build time, not read at runtime.
+              sh '''
+                docker build \
+                  --build-arg NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
+                  --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
+                  -t "$IMAGE_NAME:$BUILD_NUMBER" \
+                  -t "$IMAGE_NAME:latest" \
+                  .
+              '''
+            }
+          } catch (e) {
+            error("Missing Jenkins credentials. Create Secret text entries with IDs 'supabase-url' and 'supabase-anon-key'. Original error: ${e.message}")
+          }
+        }
       }
     }
 
@@ -84,11 +88,23 @@ pipeline {
       echo "Deployed $IMAGE_NAME:$BUILD_NUMBER on http://localhost:${HOST_PORT}"
     }
     failure {
-      sh 'docker logs --tail 80 "$CONTAINER_NAME" 2>/dev/null || true'
+      script {
+        if (fileExists('Jenkinsfile')) {
+          sh 'docker logs --tail 80 "$CONTAINER_NAME" 2>/dev/null || true'
+        } else {
+          echo 'Skipping container logs because no workspace is available.'
+        }
+      }
     }
     always {
-      // Drop dangling images from previous builds.
-      sh 'docker image prune -f || true'
+      script {
+        if (fileExists('Jenkinsfile')) {
+          // Drop dangling images from previous builds.
+          sh 'docker image prune -f || true'
+        } else {
+          echo 'Skipping docker cleanup because no workspace is available.'
+        }
+      }
     }
   }
 }
