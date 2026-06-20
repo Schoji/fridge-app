@@ -87,11 +87,13 @@ pipeline {
 
     stage('Health check') {
       steps {
-        // App protects routes via proxy, so / returns a 307 redirect to /login
-        // for unauthenticated requests — that's a healthy response.
+        // Jenkins runs inside a container — localhost here is Jenkins, not the host.
+        // Reach the host via its Docker bridge gateway IP.
         sh '''
+          HOST_IP=$(ip route show default 2>/dev/null | awk 'NR==1{print $3}')
+          : "${HOST_IP:=172.17.0.1}"
           for i in $(seq 1 15); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$HOST_PORT/login" || true)
+            code=$(curl -s -o /dev/null -w "%{http_code}" "http://${HOST_IP}:${HOST_PORT}/login" || true)
             if [ "$code" = "200" ]; then
               echo "App is up (/login -> $code)"
               exit 0
