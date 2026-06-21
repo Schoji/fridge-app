@@ -389,12 +389,12 @@ export default function HomePage() {
       {/* FAB */}
       <Link
         href="/add"
-        className="fixed bottom-8 right-6 w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+        className="fixed bottom-8 right-6 w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"
         aria-label="Dodaj produkt"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="w-6 h-6 text-[#111213]"
+          className="w-6 h-6 text-white"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

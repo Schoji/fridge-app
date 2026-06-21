@@ -203,18 +203,18 @@ export default function AddPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#111213]">
       <div className="max-w-md mx-auto px-5 pt-14 pb-10">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
           <button
             onClick={() => router.back()}
-            className="text-gray-400 active:text-gray-600 -ml-1 p-1"
+            className="text-[#666] active:text-gray-300 -ml-1 p-1"
             aria-label="Wróć"
           >
             <BackIcon />
           </button>
-          <h1 className="text-2xl font-semibold text-gray-900">
+          <h1 className="text-2xl font-semibold text-white">
             Dodaj produkt
           </h1>
         </div>
@@ -222,7 +222,7 @@ export default function AddPage() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1.5">
+            <label className="block text-sm font-medium text-[#666] mb-1.5">
               Nazwa
             </label>
             <input
@@ -233,7 +233,7 @@ export default function AddPage() {
               list="product-name-suggestions"
               autoComplete="off"
               required
-              className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 bg-white text-gray-900 text-base placeholder:text-gray-300 focus:outline-none focus:border-gray-400"
+              className="w-full px-4 py-3.5 rounded-2xl border border-[#2A2A2D] bg-[#1C1D1F] text-white text-base placeholder:text-[#555] focus:outline-none focus:border-[#444]"
             />
             <datalist id="product-name-suggestions">
               {suggestedProductNames.map((productName) => (
@@ -244,7 +244,7 @@ export default function AddPage() {
 
           {/* Expiration date */}
           <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1.5">
+            <label className="block text-sm font-medium text-[#666] mb-1.5">
               Data ważności
             </label>
             <input
@@ -252,15 +252,16 @@ export default function AddPage() {
               value={expirationDate}
               onChange={(e) => setExpirationDate(e.target.value)}
               required
-              className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 bg-white text-gray-900 text-base focus:outline-none focus:border-gray-400"
+              style={{ colorScheme: "dark" }}
+              className="w-full px-4 py-3.5 rounded-2xl border border-[#2A2A2D] bg-[#1C1D1F] text-white text-base focus:outline-none focus:border-[#444]"
             />
           </div>
 
           {/* Photo */}
           <div>
-            <label className="block text-sm font-medium text-gray-500 mb-1.5">
+            <label className="block text-sm font-medium text-[#666] mb-1.5">
               Zdjęcie{" "}
-              <span className="text-gray-300 font-normal">(opcjonalnie)</span>
+              <span className="text-[#444] font-normal">(opcjonalnie)</span>
             </label>
 
             {imagePreview ? (
@@ -275,7 +276,7 @@ export default function AddPage() {
                 <button
                   type="button"
                   onClick={clearImage}
-                  className="absolute top-3 right-3 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white active:bg-black/70"
+                  className="absolute top-3 right-3 w-8 h-8 bg-black/60 rounded-full flex items-center justify-center text-white active:bg-black/80"
                   aria-label="Usuń zdjęcie"
                 >
                   <svg
@@ -297,7 +298,7 @@ export default function AddPage() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={compressing}
-                className="w-full h-36 rounded-2xl border-2 border-dashed border-gray-200 bg-white flex flex-col items-center justify-center gap-2 text-gray-300 active:border-gray-300 disabled:opacity-50"
+                className="w-full h-36 rounded-2xl border-2 border-dashed border-[#333] bg-[#1C1D1F] flex flex-col items-center justify-center gap-2 text-[#555] active:border-[#555] disabled:opacity-50"
               >
                 <CameraIcon />
                 <span className="text-sm">
@@ -317,12 +318,12 @@ export default function AddPage() {
             />
           </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-red-400 text-sm">{error}</p>}
 
           <button
             type="submit"
             disabled={loading || compressing}
-            className="w-full py-3.5 rounded-2xl bg-gray-900 text-white font-medium text-base disabled:opacity-50 mt-1 active:scale-[0.98] transition-transform"
+            className="w-full py-3.5 rounded-2xl bg-green-500 text-white font-semibold text-base disabled:opacity-50 mt-1 active:scale-[0.98] transition-transform"
           >
             {loading ? "Zapisywanie..." : "Dodaj produkt"}
           </button>
