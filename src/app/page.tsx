@@ -13,6 +13,8 @@ type Product = {
   image_url: string | null;
 };
 
+const PRODUCT_REFRESH_INTERVAL_MS = 5000;
+
 function daysUntilExpiry(dateStr: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -101,6 +103,12 @@ export default function HomePage() {
     const supabase = createClient();
     void loadProducts();
 
+    function refreshVisibleList() {
+      if (document.visibilityState === "visible") {
+        void loadProducts();
+      }
+    }
+
     const channel = supabase
       .channel("products-live-list")
       .on<Product>(
@@ -122,9 +130,28 @@ export default function HomePage() {
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (
+          status === "SUBSCRIBED" ||
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT" ||
+          status === "CLOSED"
+        ) {
+          void loadProducts();
+        }
+      });
+
+    window.addEventListener("focus", refreshVisibleList);
+    document.addEventListener("visibilitychange", refreshVisibleList);
+    const refreshInterval = window.setInterval(
+      refreshVisibleList,
+      PRODUCT_REFRESH_INTERVAL_MS
+    );
 
     return () => {
+      window.removeEventListener("focus", refreshVisibleList);
+      document.removeEventListener("visibilitychange", refreshVisibleList);
+      window.clearInterval(refreshInterval);
       void supabase.removeChannel(channel);
     };
   }, [loadProducts]);
