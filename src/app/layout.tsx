@@ -14,16 +14,17 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "Lodówka",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#111827",
+  themeColor: "#111213",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -33,7 +34,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pl" className="h-full">
-      <body className="min-h-full bg-gray-50 antialiased">{children}</body>
+      <body className="min-h-full bg-[#111213] antialiased">{children}</body>
     </html>
   );
 }
