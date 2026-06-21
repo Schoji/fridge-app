@@ -24,33 +24,24 @@ function daysUntilExpiry(dateStr: string): number {
   );
 }
 
-function ExpiryLabel({ days }: { days: number }) {
+function StatusBadge({ days }: { days: number }) {
   if (days < 0)
     return (
-      <span className="text-red-500 text-sm font-medium">
-        Po terminie od {Math.abs(days)}{" "}
-        {Math.abs(days) === 1 ? "dnia" : "dni"}
-      </span>
-    );
-  if (days === 0)
-    return (
-      <span className="text-orange-500 text-sm font-medium">
-        Termin mija dzisiaj
+      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-950 text-red-400 whitespace-nowrap">
+        Pilne!
       </span>
     );
   if (days <= 3)
     return (
-      <span className="text-orange-500 text-sm font-medium">
-        Pozostało {days} {days === 1 ? "dzień" : "dni"}
+      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#3D2C00] text-amber-400 whitespace-nowrap">
+        Wygasa wkrótce
       </span>
     );
-  return <span className="text-gray-400 text-sm">Pozostało {days} dni</span>;
-}
-
-function cardStyle(days: number): string {
-  if (days < 0) return "border-l-[3px] border-red-400 bg-red-50";
-  if (days <= 3) return "border-l-[3px] border-orange-400 bg-orange-50";
-  return "border-l-[3px] border-gray-100 bg-white";
+  return (
+    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#052E16] text-green-400 whitespace-nowrap">
+      Świeży
+    </span>
+  );
 }
 
 function sortProducts(products: Product[]): Product[] {
@@ -65,11 +56,11 @@ function SearchIcon() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      className="w-5 h-5"
+      className="w-4 h-4"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.75}
+      strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -100,11 +91,11 @@ function TrashIcon() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      className="w-5 h-5"
+      className="w-4 h-4"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.5}
+      strokeWidth={1.75}
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -112,6 +103,24 @@ function TrashIcon() {
       <path d="M19 6l-1 14H6L5 6" />
       <path d="M10 11v6M14 11v6" />
       <path d="M9 6V4h6v2" />
+    </svg>
+  );
+}
+
+function NoImageIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-8 h-8 text-[#555]"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <line x1="3" y1="3" x2="21" y2="21" />
     </svg>
   );
 }
@@ -124,10 +133,19 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
 
+  const stats = useMemo(() => {
+    const expiring = products.filter(
+      (p) => daysUntilExpiry(p.expiration_date) <= 3
+    ).length;
+    const fresh = products.filter(
+      (p) => daysUntilExpiry(p.expiration_date) > 3
+    ).length;
+    return { total: products.length, expiring, fresh };
+  }, [products]);
+
   const visibleProducts = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLocaleLowerCase("pl-PL");
     if (!normalizedQuery) return products;
-
     return products.filter((product) =>
       product.name.toLocaleLowerCase("pl-PL").includes(normalizedQuery)
     );
@@ -223,64 +241,91 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <span className="text-gray-300 text-sm">Ładowanie...</span>
+      <div className="min-h-screen flex items-center justify-center bg-[#111213]">
+        <span className="text-[#555] text-sm">Ładowanie...</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-md mx-auto">
+    <div className="min-h-screen bg-[#111213]">
+      <div className="max-w-md mx-auto px-4 pt-14 pb-32">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-14 pb-5">
-          <h1 className="text-2xl font-semibold text-gray-900">Lodówka</h1>
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <p className="text-sm text-[#666] leading-none mb-1">Moja</p>
+            <h1 className="text-[2.625rem] font-extrabold leading-none tracking-tight text-white">
+              Lodówka
+            </h1>
+          </div>
           <button
             onClick={handleSignOut}
-            className="text-sm text-gray-400 active:text-gray-600"
+            className="text-sm text-[#666] mt-2 active:text-gray-300"
           >
             Wyloguj
           </button>
         </div>
 
-        <div className="px-4 pb-4">
-          <div className="relative">
-            <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-300">
-              <SearchIcon />
-            </div>
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Szukaj produktu"
-              aria-label="Szukaj produktu"
-              className="w-full h-12 rounded-2xl border border-gray-200 bg-white pl-11 pr-11 text-base text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-gray-300 active:text-gray-500"
-                aria-label="Wyczyść wyszukiwanie"
-              >
-                <ClearIcon />
-              </button>
-            )}
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3 mb-5">
+          <div className="bg-[#252628] rounded-2xl p-4">
+            <p className="text-3xl font-bold text-white">{stats.total}</p>
+            <p className="text-xs text-[#666] mt-1">Produkty</p>
+          </div>
+          <div className="bg-[#2D2600] rounded-2xl p-4">
+            <p className="text-3xl font-bold text-amber-400">{stats.expiring}</p>
+            <p className="text-xs text-amber-600 mt-1">Wygasające</p>
+          </div>
+          <div className="bg-[#0A2218] rounded-2xl p-4">
+            <p className="text-3xl font-bold text-green-400">{stats.fresh}</p>
+            <p className="text-xs text-green-700 mt-1">Świeże</p>
           </div>
         </div>
 
-        {/* List */}
-        <div className="px-4 flex flex-col gap-2.5 pb-28">
-          {products.length === 0 ? (
-            <p className="text-center text-gray-400 text-sm py-20">
-              Brak produktów. Dotknij +, aby dodać pierwszy.
-            </p>
-          ) : visibleProducts.length === 0 ? (
-            <p className="text-center text-gray-400 text-sm py-20">
-              Nie znaleziono produktów.
-            </p>
-          ) : (
-            visibleProducts.map((product) => {
+        {/* Search */}
+        <div className="relative mb-5">
+          <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#555]">
+            <SearchIcon />
+          </div>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Szukaj produktu"
+            aria-label="Szukaj produktu"
+            className="w-full h-12 rounded-full bg-[#252628] pl-11 pr-11 text-sm text-white placeholder:text-[#555] focus:outline-none border-0"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#555] active:text-gray-300"
+              aria-label="Wyczyść wyszukiwanie"
+            >
+              <ClearIcon />
+            </button>
+          )}
+        </div>
+
+        {/* Section label */}
+        {products.length > 0 && (
+          <p className="text-[11px] font-semibold text-[#555] tracking-[0.12em] uppercase mb-4">
+            Wszystkie produkty
+          </p>
+        )}
+
+        {/* Product grid */}
+        {products.length === 0 ? (
+          <p className="text-center text-[#555] text-sm py-20">
+            Brak produktów. Dotknij +, aby dodać pierwszy.
+          </p>
+        ) : visibleProducts.length === 0 ? (
+          <p className="text-center text-[#555] text-sm py-20">
+            Nie znaleziono produktów.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {visibleProducts.map((product) => {
               const days = daysUntilExpiry(product.expiration_date);
               const formattedDate = new Date(
                 product.expiration_date + "T00:00:00"
@@ -293,63 +338,63 @@ export default function HomePage() {
               return (
                 <div
                   key={product.id}
-                  className={`flex items-center rounded-2xl shadow-sm overflow-hidden ${cardStyle(days)}`}
+                  className="bg-[#1C1D1F] rounded-2xl overflow-hidden"
                 >
-                  <div className="flex-1 py-4 pl-4 pr-3 min-w-0">
-                    <p className="font-medium text-gray-900 text-[15px] truncate">
+                  {product.image_url ? (
+                    <button
+                      onClick={() => setImageModal(product.image_url!)}
+                      className="block w-full"
+                      aria-label="Zobacz zdjęcie"
+                    >
+                      <Image
+                        src={product.image_url}
+                        alt={product.name}
+                        width={200}
+                        height={200}
+                        className="w-full aspect-square object-cover"
+                      />
+                    </button>
+                  ) : (
+                    <div className="w-full aspect-square bg-[#252628] flex flex-col items-center justify-center gap-1.5">
+                      <NoImageIcon />
+                      <span className="text-xs text-[#555]">Brak zdjęcia</span>
+                    </div>
+                  )}
+                  <div className="p-3 pt-2.5">
+                    <p className="font-semibold text-white text-[13px] leading-snug mb-0.5 line-clamp-2">
                       {product.name}
                     </p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <ExpiryLabel days={days} />
-                      <span className="text-gray-300 text-sm">·</span>
-                      <span className="text-gray-400 text-sm">
-                        {formattedDate}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1 pr-2 flex-shrink-0">
-                    {product.image_url && (
+                    <p className="text-[11px] text-[#666] mb-2.5">
+                      {formattedDate}
+                    </p>
+                    <div className="flex items-center justify-between gap-1">
+                      <StatusBadge days={days} />
                       <button
-                        onClick={() => setImageModal(product.image_url!)}
-                        className="w-11 h-11 rounded-xl overflow-hidden"
-                        aria-label="Zobacz zdjęcie"
+                        onClick={() => handleDelete(product)}
+                        disabled={deleting === product.id}
+                        className="p-1 text-[#555] active:text-red-400 disabled:opacity-30 flex-shrink-0"
+                        aria-label="Usuń"
                       >
-                        <Image
-                          src={product.image_url}
-                          alt={product.name}
-                          width={44}
-                          height={44}
-                          className="w-full h-full object-cover"
-                        />
+                        <TrashIcon />
                       </button>
-                    )}
-
-                    <button
-                      onClick={() => handleDelete(product)}
-                      disabled={deleting === product.id}
-                      className="p-2.5 text-gray-300 active:text-red-400 disabled:opacity-30"
-                      aria-label="Usuń"
-                    >
-                      <TrashIcon />
-                    </button>
+                    </div>
                   </div>
                 </div>
               );
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
       </div>
 
       {/* FAB */}
       <Link
         href="/add"
-        className="fixed bottom-8 right-6 w-14 h-14 bg-gray-900 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+        className="fixed bottom-8 right-6 w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"
         aria-label="Dodaj produkt"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="w-6 h-6 text-white"
+          className="w-6 h-6 text-[#111213]"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -364,7 +409,7 @@ export default function HomePage() {
       {/* Image modal */}
       {imageModal && (
         <div
-          className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-6"
+          className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-6"
           onClick={() => setImageModal(null)}
         >
           <Image
