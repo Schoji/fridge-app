@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -61,6 +61,41 @@ function sortProducts(products: Product[]): Product[] {
   });
 }
 
+function SearchIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-5 h-5"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.3-4.3" />
+    </svg>
+  );
+}
+
+function ClearIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
 function TrashIcon() {
   return (
     <svg
@@ -86,7 +121,17 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [imageModal, setImageModal] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
+
+  const visibleProducts = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLocaleLowerCase("pl-PL");
+    if (!normalizedQuery) return products;
+
+    return products.filter((product) =>
+      product.name.toLocaleLowerCase("pl-PL").includes(normalizedQuery)
+    );
+  }, [products, searchQuery]);
 
   const loadProducts = useCallback(async () => {
     const supabase = createClient();
@@ -198,14 +243,44 @@ export default function HomePage() {
           </button>
         </div>
 
+        <div className="px-4 pb-4">
+          <div className="relative">
+            <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-300">
+              <SearchIcon />
+            </div>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Szukaj produktu"
+              aria-label="Szukaj produktu"
+              className="w-full h-12 rounded-2xl border border-gray-200 bg-white pl-11 pr-11 text-base text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-gray-400"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-gray-300 active:text-gray-500"
+                aria-label="Wyczyść wyszukiwanie"
+              >
+                <ClearIcon />
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* List */}
         <div className="px-4 flex flex-col gap-2.5 pb-28">
           {products.length === 0 ? (
             <p className="text-center text-gray-400 text-sm py-20">
               Brak produktów. Dotknij +, aby dodać pierwszy.
             </p>
+          ) : visibleProducts.length === 0 ? (
+            <p className="text-center text-gray-400 text-sm py-20">
+              Nie znaleziono produktów.
+            </p>
           ) : (
-            products.map((product) => {
+            visibleProducts.map((product) => {
               const days = daysUntilExpiry(product.expiration_date);
               const formattedDate = new Date(
                 product.expiration_date + "T00:00:00"
