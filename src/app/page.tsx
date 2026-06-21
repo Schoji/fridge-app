@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase-client";
 
 type Product = {
@@ -251,7 +252,12 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#111213]">
       <div className="max-w-md mx-auto px-4 pt-14 pb-32">
         {/* Header */}
-        <div className="flex items-start justify-between mb-6">
+        <motion.div
+          className="flex items-start justify-between mb-6"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+        >
           <div>
             <p className="text-sm text-[#666] leading-none mb-1">Moja</p>
             <h1 className="text-[2.625rem] font-extrabold leading-none tracking-tight text-white">
@@ -264,26 +270,35 @@ export default function HomePage() {
           >
             Wyloguj
           </button>
-        </div>
+        </motion.div>
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-5">
-          <div className="bg-[#252628] rounded-2xl p-4">
-            <p className="text-3xl font-bold text-white">{stats.total}</p>
-            <p className="text-xs text-[#666] mt-1">Produkty</p>
-          </div>
-          <div className="bg-[#2D2600] rounded-2xl p-4">
-            <p className="text-3xl font-bold text-amber-400">{stats.expiring}</p>
-            <p className="text-xs text-amber-600 mt-1">Wygasające</p>
-          </div>
-          <div className="bg-[#0A2218] rounded-2xl p-4">
-            <p className="text-3xl font-bold text-green-400">{stats.fresh}</p>
-            <p className="text-xs text-green-700 mt-1">Świeże</p>
-          </div>
+          {[
+            { bg: "bg-[#252628]", value: stats.total, label: "Produkty", valueClass: "text-white", labelClass: "text-[#666]" },
+            { bg: "bg-[#2D2600]", value: stats.expiring, label: "Wygasające", valueClass: "text-amber-400", labelClass: "text-amber-600" },
+            { bg: "bg-[#0A2218]", value: stats.fresh, label: "Świeże", valueClass: "text-green-400", labelClass: "text-green-700" },
+          ].map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              className={`${stat.bg} rounded-2xl p-4`}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.08 + i * 0.07, ease: "easeOut" }}
+            >
+              <p className={`text-3xl font-bold ${stat.valueClass}`}>{stat.value}</p>
+              <p className={`text-xs mt-1 ${stat.labelClass}`}>{stat.label}</p>
+            </motion.div>
+          ))}
         </div>
 
         {/* Search */}
-        <div className="relative mb-5">
+        <motion.div
+          className="relative mb-5"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.28 }}
+        >
           <div className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#555]">
             <SearchIcon />
           </div>
@@ -305,13 +320,18 @@ export default function HomePage() {
               <ClearIcon />
             </button>
           )}
-        </div>
+        </motion.div>
 
         {/* Section label */}
         {products.length > 0 && (
-          <p className="text-[11px] font-semibold text-[#555] tracking-[0.12em] uppercase mb-4">
+          <motion.p
+            className="text-[11px] font-semibold text-[#555] tracking-[0.12em] uppercase mb-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.32 }}
+          >
             Wszystkie produkty
-          </p>
+          </motion.p>
         )}
 
         {/* Product grid */}
@@ -325,7 +345,8 @@ export default function HomePage() {
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            {visibleProducts.map((product) => {
+            <AnimatePresence>
+            {visibleProducts.map((product, index) => {
               const days = daysUntilExpiry(product.expiration_date);
               const formattedDate = new Date(
                 product.expiration_date + "T00:00:00"
@@ -336,9 +357,13 @@ export default function HomePage() {
               });
 
               return (
-                <div
+                <motion.div
                   key={product.id}
                   className="bg-[#1C1D1F] rounded-2xl overflow-hidden"
+                  initial={{ opacity: 0, scale: 0.94 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
+                  transition={{ duration: 0.28, delay: Math.min(index * 0.05, 0.25), ease: "easeOut" }}
                 >
                   {product.image_url ? (
                     <button
@@ -379,17 +404,24 @@ export default function HomePage() {
                       </button>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
+            </AnimatePresence>
           </div>
         )}
       </div>
 
       {/* FAB */}
+      <motion.div
+        className="fixed bottom-8 right-6"
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.4 }}
+      >
       <Link
         href="/add"
-        className="fixed bottom-8 right-6 w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+        className="w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"
         aria-label="Dodaj produkt"
       >
         <svg
@@ -405,6 +437,7 @@ export default function HomePage() {
           <path d="M12 5v14M5 12h14" />
         </svg>
       </Link>
+      </motion.div>
 
       {/* Image modal */}
       {imageModal && (

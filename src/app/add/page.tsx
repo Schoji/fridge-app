@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import imageCompression from "browser-image-compression";
 import { createClient } from "@/lib/supabase-client";
 
@@ -206,7 +207,12 @@ export default function AddPage() {
     <div className="min-h-screen bg-[#111213]">
       <div className="max-w-md mx-auto px-5 pt-14 pb-10">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
+        <motion.div
+          className="flex items-center gap-3 mb-8"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+        >
           <button
             onClick={() => router.back()}
             className="text-[#666] active:text-gray-300 -ml-1 p-1"
@@ -217,9 +223,15 @@ export default function AddPage() {
           <h1 className="text-2xl font-semibold text-white">
             Dodaj produkt
           </h1>
-        </div>
+        </motion.div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <motion.form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-5"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.1, ease: "easeOut" }}
+        >
           {/* Name */}
           <div>
             <label className="block text-sm font-medium text-[#666] mb-1.5">
@@ -327,7 +339,7 @@ export default function AddPage() {
           >
             {loading ? "Zapisywanie..." : "Dodaj produkt"}
           </button>
-        </form>
+        </motion.form>
       </div>
     </div>
   );
