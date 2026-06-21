@@ -22,7 +22,7 @@ export default function LoginPage() {
     });
 
     if (authError) {
-      setError("Invalid email or password.");
+      setError("Nieprawidłowy e-mail lub hasło.");
       setLoading(false);
     } else {
       router.push("/");
@@ -33,13 +33,15 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-6">
       <div className="w-full max-w-sm">
-        <h1 className="text-3xl font-semibold text-gray-900 mb-2">Fridge</h1>
-        <p className="text-gray-400 mb-10 text-sm">Sign in to continue</p>
+        <h1 className="text-3xl font-semibold text-gray-900 mb-2">Lodówka</h1>
+        <p className="text-gray-400 mb-10 text-sm">
+          Zaloguj się, aby kontynuować
+        </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input
             type="email"
-            placeholder="Email"
+            placeholder="E-mail"
             value={email}
             autoComplete="email"
             onChange={(e) => setEmail(e.target.value)}
@@ -48,7 +50,7 @@ export default function LoginPage() {
           />
           <input
             type="password"
-            placeholder="Password"
+            placeholder="Hasło"
             value={password}
             autoComplete="current-password"
             onChange={(e) => setPassword(e.target.value)}
@@ -63,7 +65,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full py-3.5 rounded-2xl bg-gray-900 text-white font-medium text-base disabled:opacity-50 mt-2 active:scale-[0.98] transition-transform"
           >
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? "Logowanie..." : "Zaloguj"}
           </button>
         </form>
       </div>

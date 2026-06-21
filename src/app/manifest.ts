@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Fridge Companion",
-    short_name: "Fridge",
-    description: "Track your fridge products and expiration dates",
+    name: "Lodówka",
+    short_name: "Lodówka",
+    description: "Śledź produkty w lodówce i ich daty ważności",
     start_url: "/",
     display: "standalone",
     background_color: "#f9fafb",

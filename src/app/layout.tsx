@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Fridge",
-  description: "Track your fridge products and expiration dates",
+  title: "Lodówka",
+  description: "Śledź produkty w lodówce i ich daty ważności",
   icons: {
     icon: [
       { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Fridge",
+    title: "Lodówka",
   },
 };
 
@@ -32,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="pl" className="h-full">
       <body className="min-h-full bg-gray-50 antialiased">{children}</body>
     </html>
   );

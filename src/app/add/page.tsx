@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import imageCompression from "browser-image-compression";
@@ -41,16 +41,87 @@ function CameraIcon() {
   );
 }
 
+type ProductName = {
+  name: string;
+};
+
+function normalizeProductName(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function uniqueSortedNames(names: string[]): string[] {
+  const unique = new Map<string, string>();
+
+  names.forEach((name) => {
+    const normalized = normalizeProductName(name);
+    if (!normalized) return;
+    const key = normalized.toLocaleLowerCase("pl-PL");
+    if (!unique.has(key)) unique.set(key, normalized);
+  });
+
+  return [...unique.values()].sort((a, b) =>
+    a.localeCompare(b, "pl", { sensitivity: "base" })
+  );
+}
+
 export default function AddPage() {
   const [name, setName] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [knownProductNames, setKnownProductNames] = useState<string[]>([]);
   const [compressing, setCompressing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  const suggestedProductNames = useMemo(() => {
+    const currentName = normalizeProductName(name).toLocaleLowerCase("pl-PL");
+    return knownProductNames.filter(
+      (productName) =>
+        productName.toLocaleLowerCase("pl-PL") !== currentName
+    );
+  }, [knownProductNames, name]);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    supabase
+      .from("products")
+      .select("name")
+      .order("name", { ascending: true })
+      .then(({ data, error: namesError }) => {
+        if (!namesError) {
+          setKnownProductNames(uniqueSortedNames((data ?? []).map((p) => p.name)));
+        }
+      });
+
+    const channel = supabase
+      .channel("product-name-suggestions")
+      .on<ProductName>(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "products" },
+        (payload) => {
+          const newName = payload.new?.name;
+          if (!newName) return;
+          setKnownProductNames((current) =>
+            uniqueSortedNames([...current, newName])
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -58,6 +129,7 @@ export default function AddPage() {
 
     setCompressing(true);
     try {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
       const compressed = await imageCompression(file, {
         maxSizeMB: 0.5,
         maxWidthOrHeight: 1200,
@@ -66,7 +138,7 @@ export default function AddPage() {
       setImageFile(compressed);
       setImagePreview(URL.createObjectURL(compressed));
     } catch {
-      setError("Failed to process image.");
+      setError("Nie udało się przetworzyć zdjęcia.");
     } finally {
       setCompressing(false);
     }
@@ -84,6 +156,13 @@ export default function AddPage() {
     setLoading(true);
     setError("");
 
+    const trimmedName = normalizeProductName(name);
+    if (!trimmedName) {
+      setError("Wpisz nazwę produktu.");
+      setLoading(false);
+      return;
+    }
+
     const supabase = createClient();
     let imageUrl: string | null = null;
 
@@ -96,7 +175,7 @@ export default function AddPage() {
         .upload(filename, imageFile, { contentType: imageFile.type });
 
       if (uploadError) {
-        setError("Failed to upload image. Please try again.");
+        setError("Nie udało się wysłać zdjęcia. Spróbuj ponownie.");
         setLoading(false);
         return;
       }
@@ -109,13 +188,13 @@ export default function AddPage() {
     }
 
     const { error: insertError } = await supabase.from("products").insert({
-      name: name.trim(),
+      name: trimmedName,
       expiration_date: expirationDate,
       image_url: imageUrl,
     });
 
     if (insertError) {
-      setError("Failed to save product. Please try again.");
+      setError("Nie udało się zapisać produktu. Spróbuj ponownie.");
       setLoading(false);
       return;
     }
@@ -131,32 +210,42 @@ export default function AddPage() {
           <button
             onClick={() => router.back()}
             className="text-gray-400 active:text-gray-600 -ml-1 p-1"
+            aria-label="Wróć"
           >
             <BackIcon />
           </button>
-          <h1 className="text-2xl font-semibold text-gray-900">Add product</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            Dodaj produkt
+          </h1>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           {/* Name */}
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-1.5">
-              Name
+              Nazwa
             </label>
             <input
               type="text"
-              placeholder="e.g. Milk"
+              placeholder="np. mleko"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              list="product-name-suggestions"
+              autoComplete="off"
               required
               className="w-full px-4 py-3.5 rounded-2xl border border-gray-200 bg-white text-gray-900 text-base placeholder:text-gray-300 focus:outline-none focus:border-gray-400"
             />
+            <datalist id="product-name-suggestions">
+              {suggestedProductNames.map((productName) => (
+                <option key={productName} value={productName} />
+              ))}
+            </datalist>
           </div>
 
           {/* Expiration date */}
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-1.5">
-              Expiration date
+              Data ważności
             </label>
             <input
               type="date"
@@ -170,15 +259,15 @@ export default function AddPage() {
           {/* Photo */}
           <div>
             <label className="block text-sm font-medium text-gray-500 mb-1.5">
-              Photo{" "}
-              <span className="text-gray-300 font-normal">(optional)</span>
+              Zdjęcie{" "}
+              <span className="text-gray-300 font-normal">(opcjonalnie)</span>
             </label>
 
             {imagePreview ? (
               <div className="relative rounded-2xl overflow-hidden">
                 <Image
                   src={imagePreview}
-                  alt="Preview"
+                  alt="Podgląd zdjęcia"
                   width={400}
                   height={240}
                   className="w-full h-52 object-cover"
@@ -187,7 +276,7 @@ export default function AddPage() {
                   type="button"
                   onClick={clearImage}
                   className="absolute top-3 right-3 w-8 h-8 bg-black/50 rounded-full flex items-center justify-center text-white active:bg-black/70"
-                  aria-label="Remove photo"
+                  aria-label="Usuń zdjęcie"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -213,8 +302,8 @@ export default function AddPage() {
                 <CameraIcon />
                 <span className="text-sm">
                   {compressing
-                    ? "Processing…"
-                    : "Take photo or choose from library"}
+                    ? "Przetwarzanie..."
+                    : "Zrób zdjęcie albo wybierz z galerii"}
                 </span>
               </button>
             )}
@@ -235,7 +324,7 @@ export default function AddPage() {
             disabled={loading || compressing}
             className="w-full py-3.5 rounded-2xl bg-gray-900 text-white font-medium text-base disabled:opacity-50 mt-1 active:scale-[0.98] transition-transform"
           >
-            {loading ? "Saving…" : "Add product"}
+            {loading ? "Zapisywanie..." : "Dodaj produkt"}
           </button>
         </form>
       </div>

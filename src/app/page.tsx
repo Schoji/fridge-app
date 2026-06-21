@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -26,26 +26,37 @@ function ExpiryLabel({ days }: { days: number }) {
   if (days < 0)
     return (
       <span className="text-red-500 text-sm font-medium">
-        Expired {Math.abs(days)} day{Math.abs(days) !== 1 ? "s" : ""} ago
+        Po terminie od {Math.abs(days)}{" "}
+        {Math.abs(days) === 1 ? "dnia" : "dni"}
       </span>
     );
   if (days === 0)
     return (
-      <span className="text-orange-500 text-sm font-medium">Expires today</span>
+      <span className="text-orange-500 text-sm font-medium">
+        Termin mija dzisiaj
+      </span>
     );
   if (days <= 3)
     return (
       <span className="text-orange-500 text-sm font-medium">
-        {days} day{days !== 1 ? "s" : ""} left
+        Pozostało {days} {days === 1 ? "dzień" : "dni"}
       </span>
     );
-  return <span className="text-gray-400 text-sm">{days} days left</span>;
+  return <span className="text-gray-400 text-sm">Pozostało {days} dni</span>;
 }
 
 function cardStyle(days: number): string {
   if (days < 0) return "border-l-[3px] border-red-400 bg-red-50";
   if (days <= 3) return "border-l-[3px] border-orange-400 bg-orange-50";
   return "border-l-[3px] border-gray-100 bg-white";
+}
+
+function sortProducts(products: Product[]): Product[] {
+  return [...products].sort((a, b) => {
+    const dateCompare = a.expiration_date.localeCompare(b.expiration_date);
+    if (dateCompare !== 0) return dateCompare;
+    return a.name.localeCompare(b.name, "pl", { sensitivity: "base" });
+  });
 }
 
 function TrashIcon() {
@@ -75,20 +86,51 @@ export default function HomePage() {
   const [imageModal, setImageModal] = useState<string | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
+  const loadProducts = useCallback(async () => {
     const supabase = createClient();
-    supabase
+    const { data, error } = await supabase
       .from("products")
       .select("id, name, expiration_date, image_url")
-      .order("expiration_date", { ascending: true })
-      .then(({ data, error }) => {
-        if (!error) setProducts(data ?? []);
-        setLoading(false);
-      });
+      .order("expiration_date", { ascending: true });
+
+    if (!error) setProducts(sortProducts(data ?? []));
+    setLoading(false);
   }, []);
 
+  useEffect(() => {
+    const supabase = createClient();
+    void loadProducts();
+
+    const channel = supabase
+      .channel("products-live-list")
+      .on<Product>(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "products" },
+        (payload) => {
+          setProducts((current) => {
+            if (payload.eventType === "DELETE") {
+              return current.filter((product) => product.id !== payload.old.id);
+            }
+
+            const incoming = payload.new;
+            if (!incoming?.id) return current;
+
+            const withoutIncoming = current.filter(
+              (product) => product.id !== incoming.id
+            );
+            return sortProducts([...withoutIncoming, incoming]);
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [loadProducts]);
+
   async function handleDelete(product: Product) {
-    if (!confirm(`Delete "${product.name}"?`)) return;
+    if (!confirm(`Usunąć "${product.name}"?`)) return;
     setDeleting(product.id);
     const supabase = createClient();
 
@@ -110,7 +152,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <span className="text-gray-300 text-sm">Loading…</span>
+        <span className="text-gray-300 text-sm">Ładowanie...</span>
       </div>
     );
   }
@@ -120,12 +162,12 @@ export default function HomePage() {
       <div className="max-w-md mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-14 pb-5">
-          <h1 className="text-2xl font-semibold text-gray-900">Fridge</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Lodówka</h1>
           <button
             onClick={handleSignOut}
             className="text-sm text-gray-400 active:text-gray-600"
           >
-            Sign out
+            Wyloguj
           </button>
         </div>
 
@@ -133,14 +175,14 @@ export default function HomePage() {
         <div className="px-4 flex flex-col gap-2.5 pb-28">
           {products.length === 0 ? (
             <p className="text-center text-gray-400 text-sm py-20">
-              No products yet — tap + to add one
+              Brak produktów. Dotknij +, aby dodać pierwszy.
             </p>
           ) : (
             products.map((product) => {
               const days = daysUntilExpiry(product.expiration_date);
               const formattedDate = new Date(
                 product.expiration_date + "T00:00:00"
-              ).toLocaleDateString("en-GB", {
+              ).toLocaleDateString("pl-PL", {
                 day: "numeric",
                 month: "short",
                 year: "numeric",
@@ -169,7 +211,7 @@ export default function HomePage() {
                       <button
                         onClick={() => setImageModal(product.image_url!)}
                         className="w-11 h-11 rounded-xl overflow-hidden"
-                        aria-label="View image"
+                        aria-label="Zobacz zdjęcie"
                       >
                         <Image
                           src={product.image_url}
@@ -185,7 +227,7 @@ export default function HomePage() {
                       onClick={() => handleDelete(product)}
                       disabled={deleting === product.id}
                       className="p-2.5 text-gray-300 active:text-red-400 disabled:opacity-30"
-                      aria-label="Delete"
+                      aria-label="Usuń"
                     >
                       <TrashIcon />
                     </button>
@@ -201,7 +243,7 @@ export default function HomePage() {
       <Link
         href="/add"
         className="fixed bottom-8 right-6 w-14 h-14 bg-gray-900 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"
-        aria-label="Add product"
+        aria-label="Dodaj produkt"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -225,7 +267,7 @@ export default function HomePage() {
         >
           <Image
             src={imageModal}
-            alt="Product photo"
+            alt="Zdjęcie produktu"
             width={600}
             height={600}
             className="max-w-full max-h-[80vh] rounded-2xl object-contain"
