@@ -39,46 +39,70 @@ function plural(n: number, one: string, few: string, many: string): string {
   return many;
 }
 
-function buildMessage(
-  expired: { name: string; days_overdue: number }[],
-  soon: { name: string; days_left: number }[],
-  total: number
-): string {
-  if (expired.length === 0 && soon.length === 0) {
-    return `✅ W lodówce wszystko w porządku — nic nie wygasa w ciągu ${DEFAULT_SOON_DAYS} dni. Produktów łącznie: ${total}.`;
+type Status = "expired" | "soon" | "fresh";
+
+type Item = {
+  name: string;
+  expiration_date: string;
+  days_left: number; // negative = past the date
+  status: Status;
+};
+
+const STATUS_EMOJI: Record<Status, string> = {
+  expired: "🔴",
+  soon: "🟠",
+  fresh: "🟢",
+};
+
+function formatDatePL(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Intl.DateTimeFormat("pl-PL", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(y, m - 1, d)));
+}
+
+function describeWhen(days: number): string {
+  if (days < 0) {
+    const d = Math.abs(days);
+    return `${d} ${plural(d, "dzień", "dni", "dni")} po terminie`;
+  }
+  if (days === 0) return "dzisiaj";
+  return `za ${days} ${plural(days, "dzień", "dni", "dni")}`;
+}
+
+function buildMessage(items: Item[], soonDays: number): string {
+  const total = items.length;
+  if (total === 0) {
+    return "🧊 Lodówka jest pusta — brak produktów.";
   }
 
-  const lines: string[] = ["🧊 Stan lodówki:"];
+  const header = `🧊 Stan lodówki — ${total} ${plural(
+    total,
+    "produkt",
+    "produkty",
+    "produktów"
+  )}:`;
 
-  if (expired.length > 0) {
-    lines.push(
-      `\n🔴 Przeterminowane (${expired.length} ${plural(
-        expired.length,
-        "produkt",
-        "produkty",
-        "produktów"
-      )}):`
-    );
-    for (const p of expired) {
-      const d = Math.abs(p.days_overdue);
-      lines.push(
-        `  • ${p.name} — ${d} ${plural(d, "dzień", "dni", "dni")} po terminie`
-      );
-    }
+  // Full inventory, already sorted by expiration date (soonest first).
+  const list = items
+    .map(
+      (it) =>
+        `${STATUS_EMOJI[it.status]} ${it.name} — ${describeWhen(
+          it.days_left
+        )} (${formatDatePL(it.expiration_date)})`
+    )
+    .join("\n");
+
+  const parts = [header, list];
+
+  const needsAttention = items.some((i) => i.status !== "fresh");
+  if (!needsAttention) {
+    parts.push(`✅ Nic nie wygasa w ciągu ${soonDays} dni.`);
   }
 
-  if (soon.length > 0) {
-    lines.push(`\n🟠 Wkrótce wygasa (${soon.length}):`);
-    for (const p of soon) {
-      const when =
-        p.days_left === 0
-          ? "dzisiaj"
-          : `za ${p.days_left} ${plural(p.days_left, "dzień", "dni", "dni")}`;
-      lines.push(`  • ${p.name} — ${when}`);
-    }
-  }
-
-  return lines.join("\n");
+  return parts.join("\n\n");
 }
 
 export async function GET(request: NextRequest) {
@@ -115,40 +139,34 @@ export async function GET(request: NextRequest) {
   const todayUTC = todayInWarsawUTC();
   const rows = (data ?? []) as ProductRow[];
 
-  const expired: { name: string; expiration_date: string; days_overdue: number }[] = [];
-  const expiring_soon: { name: string; expiration_date: string; days_left: number }[] = [];
-  let freshCount = 0;
-
-  for (const row of rows) {
+  const items: Item[] = rows.map((row) => {
     const days = daysUntil(row.expiration_date, todayUTC);
-    if (days < 0) {
-      expired.push({
-        name: row.name,
-        expiration_date: row.expiration_date,
-        days_overdue: days,
-      });
-    } else if (days <= soonDays) {
-      expiring_soon.push({
-        name: row.name,
-        expiration_date: row.expiration_date,
-        days_left: days,
-      });
-    } else {
-      freshCount += 1;
-    }
-  }
+    const status: Status =
+      days < 0 ? "expired" : days <= soonDays ? "soon" : "fresh";
+    return {
+      name: row.name,
+      expiration_date: row.expiration_date,
+      days_left: days,
+      status,
+    };
+  });
 
-  const message = buildMessage(expired, expiring_soon, rows.length);
+  const expired = items.filter((i) => i.status === "expired");
+  const expiring_soon = items.filter((i) => i.status === "soon");
+  const fresh = items.filter((i) => i.status === "fresh");
+
+  const message = buildMessage(items, soonDays);
 
   return NextResponse.json({
     generated_at: new Date().toISOString(),
     summary: {
-      total: rows.length,
+      total: items.length,
       expired: expired.length,
       expiring_soon: expiring_soon.length,
-      fresh: freshCount,
+      fresh: fresh.length,
       within_days: soonDays,
     },
+    items,
     expired,
     expiring_soon,
     message,

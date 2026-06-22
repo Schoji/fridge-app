@@ -93,8 +93,9 @@ channels (Telegram/Slack/etc.).
   redirected to `/login`.
 - Day counts are anchored to `Europe/Warsaw` to match the browser-local UI.
 
-Response shape: `{ generated_at, summary{total,expired,expiring_soon,fresh,within_days}, expired[], expiring_soon[], message }`.
-`message` is a ready-to-send Polish summary Hermes can forward verbatim.
+Response shape: `{ generated_at, summary{total,expired,expiring_soon,fresh,within_days}, items[], expired[], expiring_soon[], message }`.
+`items[]` is the full inventory (each `{name, expiration_date, days_left, status}`, sorted soonest-first); `expired[]`/`expiring_soon[]` are filtered views of it.
+`message` is a ready-to-send Polish summary listing every product, which Hermes can forward verbatim.
 
 ```bash
 curl -H "Authorization: Bearer $HERMES_API_TOKEN" https://<host>/api/fridge-status
