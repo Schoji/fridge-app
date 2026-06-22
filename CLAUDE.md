@@ -74,4 +74,28 @@ Environment variables (copy `.env.local.example` → `.env.local`):
 ```
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=   # server-only, for /api/fridge-status
+HERMES_API_TOKEN=            # bearer token Hermes must send
+```
+
+## Hermes integration (`/api/fridge-status`)
+
+Read-only JSON endpoint so the [Hermes Agent](https://hermes-agent.nousresearch.com)
+(or a cron job) can poll fridge state and push expiry notifications over its own
+channels (Telegram/Slack/etc.).
+
+- `src/app/api/fridge-status/route.ts` — `GET` route handler. Auth via
+  `Authorization: Bearer $HERMES_API_TOKEN`. Optional `?within=N` overrides the
+  3-day "expiring soon" horizon.
+- `src/lib/supabase-admin.ts` — service-role client (bypasses RLS, no user
+  session). **Server-only**; never import into a client component.
+- `src/proxy.ts` matcher excludes `api` so the unauthenticated endpoint isn't
+  redirected to `/login`.
+- Day counts are anchored to `Europe/Warsaw` to match the browser-local UI.
+
+Response shape: `{ generated_at, summary{total,expired,expiring_soon,fresh,within_days}, expired[], expiring_soon[], message }`.
+`message` is a ready-to-send Polish summary Hermes can forward verbatim.
+
+```bash
+curl -H "Authorization: Bearer $HERMES_API_TOKEN" https://<host>/api/fridge-status
 ```

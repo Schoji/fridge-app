@@ -73,15 +73,26 @@ pipeline {
 
     stage('Deploy') {
       steps {
-        // Replace the running container with the freshly built image.
-        sh '''
-          docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
-          docker run -d \
-            --name "$CONTAINER_NAME" \
-            --restart unless-stopped \
-            -p "$HOST_PORT":3000 \
-            "$IMAGE_NAME:latest"
-        '''
+        // Server-only secrets are injected at RUNTIME (docker run), never baked
+        // into the image. Passing `-e VAR` without a value forwards it from the
+        // (credential-masked) shell env, so the value never lands on the
+        // command line or in `docker inspect` history.
+        withCredentials([
+          string(credentialsId: 'hermes-api-token', variable: 'HERMES_API_TOKEN'),
+          string(credentialsId: 'supabase-service-role-key', variable: 'SUPABASE_SERVICE_ROLE_KEY'),
+        ]) {
+          // Replace the running container with the freshly built image.
+          sh '''
+            docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
+            docker run -d \
+              --name "$CONTAINER_NAME" \
+              --restart unless-stopped \
+              -p "$HOST_PORT":3000 \
+              -e HERMES_API_TOKEN \
+              -e SUPABASE_SERVICE_ROLE_KEY \
+              "$IMAGE_NAME:latest"
+          '''
+        }
       }
     }
 
