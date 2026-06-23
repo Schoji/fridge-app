@@ -12,6 +12,7 @@ type Product = {
   name: string;
   expiration_date: string;
   image_url: string | null;
+  quantity: number;
 };
 
 const PRODUCT_REFRESH_INTERVAL_MS = 5000;
@@ -156,7 +157,7 @@ export default function HomePage() {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, expiration_date, image_url")
+      .select("id, name, expiration_date, image_url, quantity")
       .order("expiration_date", { ascending: true });
 
     if (!error) setProducts(sortProducts(data ?? []));
@@ -220,8 +221,7 @@ export default function HomePage() {
     };
   }, [loadProducts]);
 
-  async function handleDelete(product: Product) {
-    if (!confirm(`Usunąć "${product.name}"?`)) return;
+  async function removeProduct(product: Product) {
     setDeleting(product.id);
     const supabase = createClient();
 
@@ -233,6 +233,43 @@ export default function HomePage() {
     await supabase.from("products").delete().eq("id", product.id);
     setProducts((prev) => prev.filter((p) => p.id !== product.id));
     setDeleting(null);
+  }
+
+  async function handleDelete(product: Product) {
+    if (!confirm(`Usunąć "${product.name}"?`)) return;
+    await removeProduct(product);
+  }
+
+  async function handleIncrement(product: Product) {
+    const nextQuantity = product.quantity + 1;
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === product.id ? { ...p, quantity: nextQuantity } : p
+      )
+    );
+    await createClient()
+      .from("products")
+      .update({ quantity: nextQuantity })
+      .eq("id", product.id);
+  }
+
+  async function handleDecrement(product: Product) {
+    if (product.quantity <= 1) {
+      if (!confirm(`To była ostatnia sztuka. Usunąć "${product.name}"?`)) return;
+      await removeProduct(product);
+      return;
+    }
+
+    const nextQuantity = product.quantity - 1;
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === product.id ? { ...p, quantity: nextQuantity } : p
+      )
+    );
+    await createClient()
+      .from("products")
+      .update({ quantity: nextQuantity })
+      .eq("id", product.id);
   }
 
   async function handleSignOut() {
@@ -401,6 +438,27 @@ export default function HomePage() {
                         aria-label="Usuń"
                       >
                         <TrashIcon />
+                      </button>
+                    </div>
+                    <div className="mt-2.5 flex items-center justify-between gap-1 rounded-full bg-[#252628] px-1.5 py-1">
+                      <button
+                        onClick={() => handleDecrement(product)}
+                        disabled={deleting === product.id}
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-lg font-semibold text-white active:bg-[#333] disabled:opacity-30"
+                        aria-label="Odejmij sztukę"
+                      >
+                        −
+                      </button>
+                      <span className="text-sm font-semibold text-white tabular-nums">
+                        {product.quantity} szt.
+                      </span>
+                      <button
+                        onClick={() => handleIncrement(product)}
+                        disabled={deleting === product.id}
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-lg font-semibold text-green-400 active:bg-[#333] disabled:opacity-30"
+                        aria-label="Dodaj sztukę"
+                      >
+                        +
                       </button>
                     </div>
                   </div>

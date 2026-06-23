@@ -68,6 +68,7 @@ function uniqueSortedNames(names: string[]): string[] {
 export default function AddPage() {
   const [name, setName] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
+  const [quantity, setQuantity] = useState(1);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [knownProductNames, setKnownProductNames] = useState<string[]>([]);
@@ -192,6 +193,7 @@ export default function AddPage() {
       name: trimmedName,
       expiration_date: expirationDate,
       image_url: imageUrl,
+      quantity,
     });
 
     if (insertError) {
@@ -267,6 +269,38 @@ export default function AddPage() {
               style={{ colorScheme: "dark" }}
               className="w-full px-4 py-3.5 rounded-2xl border border-[#2A2A2D] bg-[#1C1D1F] text-white text-base focus:outline-none focus:border-[#444]"
             />
+          </div>
+
+          {/* Quantity */}
+          <div>
+            <label className="block text-sm font-medium text-[#666] mb-1.5">
+              Ilość sztuk
+            </label>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                disabled={quantity <= 1}
+                className="w-12 h-12 rounded-2xl border border-[#2A2A2D] bg-[#1C1D1F] text-white text-2xl font-semibold flex items-center justify-center active:bg-[#252628] disabled:opacity-30 disabled:active:bg-[#1C1D1F]"
+                aria-label="Zmniejsz ilość"
+              >
+                −
+              </button>
+              <span
+                className="min-w-[2.5rem] text-center text-2xl font-bold text-white tabular-nums"
+                aria-live="polite"
+              >
+                {quantity}
+              </span>
+              <button
+                type="button"
+                onClick={() => setQuantity((q) => q + 1)}
+                className="w-12 h-12 rounded-2xl border border-[#2A2A2D] bg-[#1C1D1F] text-white text-2xl font-semibold flex items-center justify-center active:bg-[#252628]"
+                aria-label="Zwiększ ilość"
+              >
+                +
+              </button>
+            </div>
           </div>
 
           {/* Photo */}

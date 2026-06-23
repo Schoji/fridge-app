@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 type ProductRow = {
   name: string;
   expiration_date: string;
+  quantity: number;
 };
 
 const DEFAULT_SOON_DAYS = 3;
@@ -44,6 +45,7 @@ type Status = "expired" | "soon" | "fresh";
 type Item = {
   name: string;
   expiration_date: string;
+  quantity: number;
   days_left: number; // negative = past the date
   status: Status;
 };
@@ -89,7 +91,7 @@ function buildMessage(items: Item[], soonDays: number): string {
   const list = items
     .map(
       (it) =>
-        `${STATUS_EMOJI[it.status]} ${it.name} — ${describeWhen(
+        `${STATUS_EMOJI[it.status]} ${it.name} (${it.quantity} szt.) — ${describeWhen(
           it.days_left
         )} (${formatDatePL(it.expiration_date)})`
     )
@@ -129,7 +131,7 @@ export async function GET(request: NextRequest) {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("products")
-    .select("name, expiration_date")
+    .select("name, expiration_date, quantity")
     .order("expiration_date", { ascending: true });
 
   if (error) {
@@ -146,6 +148,7 @@ export async function GET(request: NextRequest) {
     return {
       name: row.name,
       expiration_date: row.expiration_date,
+      quantity: row.quantity,
       days_left: days,
       status,
     };

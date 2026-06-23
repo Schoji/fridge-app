@@ -61,6 +61,7 @@ CREATE TABLE products (
   name text NOT NULL,
   expiration_date date NOT NULL,
   image_url text,
+  quantity integer NOT NULL DEFAULT 1 CHECK (quantity >= 1),
   created_at timestamptz DEFAULT now()
 );
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
@@ -94,7 +95,7 @@ channels (Telegram/Slack/etc.).
 - Day counts are anchored to `Europe/Warsaw` to match the browser-local UI.
 
 Response shape: `{ generated_at, summary{total,expired,expiring_soon,fresh,within_days}, items[], expired[], expiring_soon[], message }`.
-`items[]` is the full inventory (each `{name, expiration_date, days_left, status}`, sorted soonest-first); `expired[]`/`expiring_soon[]` are filtered views of it.
+`items[]` is the full inventory (each `{name, expiration_date, quantity, days_left, status}`, sorted soonest-first); `expired[]`/`expiring_soon[]` are filtered views of it.
 `message` is a ready-to-send Polish summary listing every product, which Hermes can forward verbatim.
 
 ```bash
